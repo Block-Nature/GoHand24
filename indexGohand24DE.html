@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoHand24 - Dreiländereck</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+:root {
+--primary-blue: #007bff;
+--urgent-red: #ff3b3b;
+--dark-bg: #0a0a0a;
+--card-bg: #1a1a1a;
+--text-light: #e0e0e0;
+--accent-blue: #00d4ff;
+--gold: #ffcc00;
+--online-green: #28a745;
+--nav-text: #888;
+}
+
+body {
+font-family: 'Helvetica Neue', Arial, sans-serif;
+background-color: var(--dark-bg);
+color: var(--text-light);
+margin: 0; padding: 0;
+}
+
+header {
+background-color: #000;
+padding: 1.5rem 1rem;
+text-align: center;
+border-bottom: 3px solid var(--primary-blue);
+}
+
+.logo { font-size: 2.2rem; font-weight: bold; color: white; text-transform: uppercase; }
+.logo span { color: var(--primary-blue); }
+
+#portal {
+display: flex; flex-direction: column; align-items: center; justify-content: center;
+height: 80vh; text-align: center; padding: 20px;
+}
+
+.portal-btn {
+width: 100%; max-width: 300px; padding: 25px; margin: 15px;
+border-radius: 15px; border: 2px solid var(--primary-blue);
+background: var(--card-bg); color: white; font-size: 1.2rem;
+font-weight: bold; cursor: pointer; transition: 0.3s;
+}
+
+nav {
+display: none; justify-content: space-around;
+background: #111; padding: 12px 5px;
+position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #333;
+}
+
+nav a { color: var(--nav-text); text-decoration: none; font-size: 0.7rem; text-align: center; cursor: pointer; position: relative; }
+nav i { display: block; font-size: 1.4rem; margin-bottom: 4px; }
+nav a.active-link { color: var(--accent-blue); }
+
+.notification-badge {
+position: absolute; top: -2px; right: 5px;
+background-color: var(--urgent-red); color: white;
+font-size: 0.6rem; padding: 2px 5px; border-radius: 50%;
+font-weight: bold; border: 2px solid #111;
+}
+
+.container { padding: 15px; max-width: 500px; margin: auto; }
+section { display: none; animation: fadeIn 0.4s; }
+section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* RECHERCHE ET SUGGESTIONS */
+.search-container { margin-bottom: 15px; }
+.search-input {
+width: 100%; padding: 15px; background: #1a1a1a; border: 1px solid var(--primary-blue);
+color: white; border-radius: 10px; box-sizing: border-box; font-size: 1rem;
+}
+.suggestions { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 5px; }
+.tag {
+background: #222; border: 1px solid #444; color: var(--accent-blue);
+padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; white-space: nowrap; cursor: pointer;
+}
+.tag:hover { border-color: var(--accent-blue); }
+
+.info-card { background: var(--card-bg); padding: 20px; border-radius: 15px; border: 1px solid #333; margin-bottom: 20px; }
+.wallet-box {
+background: linear-gradient(135deg, #0056b3, #00d4ff);
+padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px;
+}
+
+.worker-item {
+background: var(--card-bg); padding: 15px; margin-bottom: 12px;
+border-radius: 12px; display: flex; align-items: flex-start; gap: 15px; border: 1px solid #333;
+cursor: pointer;
+}
+
+.worker-img-container { position: relative; flex-shrink: 0; }
+.worker-img { width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--primary-blue); background-color: #333; object-fit: cover; }
+.status-indicator { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #000; position: absolute; bottom: 4px; right: 4px; }
+
+.rating { color: var(--gold); font-size: 0.85rem; }
+.bio-text { font-size: 0.75rem; color: #aaa; margin-top: 5px; line-height: 1.2; }
+
+/* MODALS */
+.modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); }
+.modal-content { background: var(--card-bg); margin: 10% auto; padding: 20px; border-radius: 20px; max-width: 400px; border: 1px solid var(--primary-blue); max-height: 85vh; overflow-y: auto; }
+.gallery { display: flex; gap: 10px; margin: 15px 0; overflow-x: auto; }
+.gallery img { width: 120px; height: 100px; border-radius: 10px; object-fit: cover; border: 1px solid #444; background: #222; flex-shrink: 0; }
+
+.rating-stars { font-size: 2rem; color: #444; text-align: center; margin: 15px 0; cursor: pointer; }
+.star-active { color: var(--gold); }
+
+input, select, textarea { width: 100%; padding: 14px; margin: 8px 0; background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 10px; box-sizing: border-box; }
+label { font-size: 0.85rem; color: var(--accent-blue); font-weight: bold; margin-top: 10px; display: block; }
+
+.btn-main { background: var(--primary-blue); color: white; border: none; padding: 16px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; }
+.btn-invoice { font-size: 0.7rem; padding: 5px 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; cursor: pointer; }
+
+.history-item { border-bottom: 1px solid #333; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.history-item:hover { background: #222; }
+
+#map { width: 100%; height: 200px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #333; }
+.geoloc-btn { position: absolute; top: 10px; left: 10px; z-index: 500; background: white; border: 2px solid #ccc; border-radius: 5px; width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #333; }
+
+.progress-container { background: #333; border-radius: 10px; height: 10px; margin: 10px 0; overflow: hidden; }
+.progress-bar { background: var(--online-green); height: 100%; transition: 0.3s; }
+
+.worker-rating-badge { background: rgba(255, 204, 0, 0.1); border: 1px solid var(--gold); padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
+.worker-rating-badge span { color: var(--gold); font-size: 1.2rem; font-weight: bold; }
+
+.status-online-banner { background: var(--online-green); color: white; padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-weight: bold; display: none; }
+.dispo-text { color: var(--online-green); font-weight: bold; }
+.payment-note { font-size: 0.7rem; color: #888; text-align: center; margin-top: 12px; line-height: 1.3; }
+
+.rating-small { color: var(--gold); font-size: 0.8rem; }
+.review-item { border-bottom: 1px solid #333; padding: 10px 0; }
+.review-item:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<header>
+<div class="logo">Go<span>Hand</span>24</div>
+</header>
+
+<div id="portal">
+<h2>Willkommen bei GoHand24</h2>
+<p>Handwerker-Dienste im Dreiländereck</p>
+<button class="portal-btn" onclick="startApp('client')">👤 ICH BIN KUNDE</button>
+<button class="portal-btn" onclick="startApp('ouvrier')">🛠️ ICH BIN HANDWERKER</button>
+</div>
+
+<div id="orderModal" class="modal">
+    <div class="modal-content" id="modalStep1">
+        <h3 id="mTitle" style="margin-top:0;"></h3>
+        <p id="mBio" style="font-size:0.8rem; color:#aaa;"></p>
+        <label>Fotos letzter Projekte:</label>
+        <div class="gallery" id="mPhotos"></div>
+        <button class="btn-main" onclick="goToStep2()">HANDWERKER BUCHEN</button>
+        <button class="btn-main" style="background:#333;" onclick="closeModal('orderModal')">ABBRECHEN</button>
+    </div>
+    <div class="modal-content" id="modalStep2" style="display:none;">
+        <h3>Details zum Auftrag</h3>
+        <label>Beschreiben Sie Ihren Bedarf (z.B. Wand 10m² streichen)</label>
+        <textarea id="workDescription" rows="5" placeholder="Geben Sie hier die Details an..."></textarea>
+        <button class="btn-main" onclick="goToStep3()">BESTÄTIGEN & RESERVIEREN</button>
+        <div class="payment-note">Die Zahlung wird erst freigegeben, wenn der Handwerker fertig ist und Sie die Arbeit bestätigt haben.</div>
+        <button class="btn-main" style="background:#333;" onclick="backToStep1()">ZURÜCK</button>
+    </div>
+    <div class="modal-content" id="modalStep3" style="display:none;">
+        <h3>Auftrag abgeschlossen?</h3>
+        <p>Bewerten Sie die Arbeit, um die Zahlung freizugeben:</p>
+        <div class="rating-stars" id="starContainer">
+            <span onclick="setRating(1)">★</span><span onclick="setRating(2)">★</span><span onclick="setRating(3)">★</span><span onclick="setRating(4)">★</span><span onclick="setRating(5)">★</span>
+        </div>
+        <button class="btn-main" onclick="confirmFinal()">BEWERTUNG SENDEN & ZAHLEN</button>
+    </div>
+</div>
+
+<div id="chantierModal" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px;">
+            <img src="https://i.pravatar.cc/150?u=muller" style="width:70px; height:70px; border-radius:50%; border:2px solid var(--accent-blue);">
+            <div><h3 style="margin:0;">Fr. Muller</h3><small style="color:var(--accent-blue);">Basel</small></div>
+        </div>
+        <label>📍 ADRESSE</label>
+        <p style="background:#000; padding:12px; border-radius:10px; font-size:0.9rem; border: 1px solid #333;">Spalenvorstadt 12, Basel, Schweiz</p>
+        <label>📊 FORTSCHRITT</label>
+        <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-top:5px;"><span>Aktueller Stand</span><span style="color:var(--online-green); font-weight:bold;">75%</span></div>
+        <div class="progress-container"><div class="progress-bar" style="width: 75%;"></div></div>
+        <label>📅 FRIST</label>
+        <p style="color:var(--online-green); font-weight:bold; margin:5px 0;">Freitag, 13. Februar - 17:00 Uhr</p>
+        <button class="btn-main" onclick="closeModal('chantierModal')">ZURÜCK</button>
+    </div>
+</div>
+
+<nav id="mainNav">
+<a onclick="showSection('accueil', this)" id="nav-home"><i>🏠</i>START</a>
+<a onclick="showSection('profil', this)"><i>👤</i>PROFIL</a>
+<a onclick="showSection('paiement', this)"><i>💳</i>ZAHLUNG</a>
+<a onclick="showSection('sav', this)"><i>🛠️</i>SERVICE <span class="notification-badge" id="savBadge">1</span></a>
+<a onclick="goBackToPortal()"><i>🔄</i>STATUS</a>
+</nav>
+
+<div class="container">
+
+<section id="accueil">
+    <div id="clientView">
+        <div class="search-container">
+            <input type="text" id="mainSearch" class="search-input" placeholder="Was suchen Sie? (z.B. Maler)" onkeyup="filterWorkers()">
+            <div class="suggestions">
+                <div class="tag" onclick="setSearch('Maler')">Maler</div>
+                <div class="tag" onclick="setSearch('Schlüsseldienst')">Schlüsseldienst</div>
+                <div class="tag" onclick="setSearch('Fliesenleger')">Fliesenleger</div>
+                <div class="tag" onclick="setSearch('Maurer')">Maurer</div>
+            </div>
+        </div>
+        <div style="position:relative; margin-bottom:15px;">
+            <button class="geoloc-btn" onclick="locateUser()" title="Standort finden">📍</button>
+            <div id="map"></div>
+        </div>
+        <h4>Handwerker in Ihrer Nähe</h4>
+        <div id="workerList">
+            <div class="worker-item" data-job="maler" onclick="openModalClient('Marc P. (Maler)', 'Experte für Innensanierung.', ['https://images.pexels.com/photos/6474471/pexels-photo-6474471.jpeg?auto=compress&cs=tinysrgb&w=300'])">
+                <div class="worker-img-container"><img src="https://i.pravatar.cc/150?u=marc" class="worker-img"><div class="status-indicator" style="background: var(--online-green);"></div></div>
+                <div style="flex-grow:1;"><strong>Marc P. (Maler)</strong><br><span class="rating">★★★★★ 5.0</span><div class="bio-text">Saint-Louis.</div></div>
+                <div style="text-align:right;"><strong>35€/h</strong><br><small class="dispo-text">Aktiv</small></div>
+            </div>
+            <div class="worker-item" data-job="schlüsseldienst" onclick="openModalClient('David K. (Schlüsseldienst)', 'Notfallöffnungen rund um die Uhr.', ['https://images.pexels.com/photos/4246111/pexels-photo-4246111.jpeg?auto=compress&cs=tinysrgb&w=300'])">
+                <div class="worker-img-container"><img src="https://i.pravatar.cc/150?u=david" class="worker-img"><div class="status-indicator" style="background: var(--online-green);"></div></div>
+                <div style="flex-grow:1;"><strong>David K. (Schlüsseldienst)</strong><br><span class="rating">★★★★☆ 4.9</span><div class="bio-text">Basel.</div></div>
+                <div style="text-align:right;"><strong>55€/h</strong><br><small class="dispo-text">Aktiv</small></div>
+            </div>
+            <div class="worker-item" data-job="maurer" style="opacity: 0.5; cursor:default;">
+                <div class="worker-img-container"><img src="https://i.pravatar.cc/150?u=hans" class="worker-img" style="filter:grayscale(1);"><div class="status-indicator" style="background: #555;"></div></div>
+                <div style="flex-grow:1;"><strong>Hans U. (Maurer)</strong><br><span class="rating">★★★★☆ 4.8</span><div class="bio-text">Zurzeit auf einer Baustelle.</div></div>
+                <div style="text-align:right;"><strong style="color:#666;">Beschäftigt</strong><br><small>Lörrach</small></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ouvrierView" style="display:none;">
+        <div id="onlineStatus" class="status-online-banner">SIE SIND AKTUELL ONLINE</div>
+        <div class="info-card">
+            <label>Meine Hauptkompetenz</label>
+            <select><option>Malerarbeiten</option><option>Fliesenleger</option><option>Schlüsseldienst</option></select>
+            <label>Einsatzgebiet</label>
+            <select><option>Basel (CH)</option><option>Saint-Louis (FR)</option><option>Lörrach (DE)</option></select>
+            <label>Stundensatz (€/h)</label>
+            <input type="number" value="45">
+            <button class="btn-main" onclick="toggleOnline()">ONLINE GEHEN</button>
+        </div>
+        <h4>Aktuelle Aufträge</h4>
+        <p style="font-size: 0.75rem; color: var(--accent-blue); margin-top: -10px; margin-bottom: 10px;">👆 Auftrag anklicken für Adresse und Fortschritt</p>
+        <div class="info-card">
+            <div class="history-item" onclick="openModalOuvrier()">
+                <div><strong>Küchenrenovierung (Fr. Muller)</strong><br><small>Basel • 75%</small></div>
+                <div style="color:var(--accent-blue); font-weight:bold;">320 €</div>
+            </div>
+            <div class="history-item">
+                <div><strong>Türöffnung (Hr. Petit)</strong><br><small>St-Louis • Abgeschlossen</small></div>
+                <div style="color:var(--accent-blue); font-weight:bold;">85 €</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="profil">
+    <h3>Mein Profil</h3>
+    <div id="ouvrierRating" class="worker-rating-badge" style="display:none;">
+        <span>★★★★★ 4.9 / 5</span><br><small>Bewertung basierend auf Ihren letzten 12 Aufträgen</small>
+    </div>
+    <div class="info-card">
+        <label>Vollständiger Name</label><input type="text" id="profName" placeholder="Max Mustermann">
+        <label>Bio</label><textarea id="profBio" rows="2" placeholder="Beschreiben Sie Ihre Erfahrung..."></textarea>
+        <label>Ausweisdokument (Vorder-/Rückseite)</label><input type="file">
+        <button class="btn-main" onclick="alert('Profil aktualisiert!')">SPEICHERN</button>
+    </div>
+</section>
+
+<section id="paiement">
+    <div id="clientPayment">
+        <div class="wallet-box"><small>Guthaben (Escrow)</small><br><span style="font-size: 2rem; font-weight: bold;">435.00 €</span></div>
+        <div class="info-card"><label>Gespeicherte Karte</label><div style="padding:10px; background:#000; border-radius:8px; border:1px solid #444;">💳 VISA •••• 4492</div></div>
+        <h4>Verlauf & Rechnungen</h4>
+        <div class="info-card">
+            <div class="history-item"><div><strong>Schlüsseldienst Basel</strong><br><small>12.01.2026</small></div><button class="btn-invoice" onclick="alert('Rechnung wird generiert')">PDF Rechnung</button></div>
+            <div class="history-item"><div><strong>Malerarbeiten St-Louis</strong><br><small>05.01.2026</small></div><button class="btn-invoice" onclick="alert('Rechnung wird generiert')">PDF Rechnung</button></div>
+        </div>
+    </div>
+    <div id="ouvrierPayment" style="display:none;">
+        <div class="info-card">
+            <label>IBAN für Auszahlungen (Pflichtfeld)</label><input type="text" placeholder="DE76 3000 6000 ...">
+            <button class="btn-main" style="background:var(--online-green);">IBAN SPEICHERN</button>
+        </div>
+        <h4>Erhaltene Zahlungen</h4>
+        <div class="info-card">
+            <div class="history-item"><div><strong>Malerarbeiten</strong><br><small>Bestätigt am 10.02.26</small></div><div style="color:var(--online-green); font-weight:bold;">+ 150.00 €</div></div>
+        </div>
+    </div>
+</section>
+
+<section id="sav" onclick="document.getElementById('savBadge').style.display='none'">
+    <h3>Hilfe & Support</h3>
+    <div class="info-card" style="border-left: 4px solid var(--accent-blue);">
+        <small>Support - Heute</small>
+        <p id="savMessage">Automatische Nachricht.</p>
+    </div>
+    <div id="ouvrierNotes" style="display:none; margin-top: 20px;">
+        <h4>Letzte Kundenbewertungen</h4>
+        <div class="info-card">
+            <div class="review-item">
+                <div style="display:flex; justify-content:space-between;"><strong>Fr. Lefebvre</strong><span class="rating-small">★★★★★</span></div>
+                <p style="font-size:0.8rem; color:#aaa; margin:5px 0;">"Sehr saubere Arbeit und pünktlich. Sehr zu empfehlen!"</p>
+                <small style="color:var(--nav-text);">Auftrag: Wohnzimmer streichen • 05.02.26</small>
+            </div>
+        </div>
+    </div>
+    <textarea placeholder="Ihre Nachricht an den Support..."></textarea><button class="btn-main">ABSENDEN</button>
+</section>
+
+</div>
+
+<script>
+var map;
+var userRole = 'client';
+
+function startApp(role) {
+    userRole = role;
+    document.getElementById('portal').style.display = 'none';
+    document.getElementById('mainNav').style.display = 'flex';
+    
+    if(role === 'client') {
+        document.getElementById('clientView').style.display = 'block';
+        document.getElementById('ouvrierView').style.display = 'none';
+        document.getElementById('clientPayment').style.display = 'block';
+        document.getElementById('ouvrierPayment').style.display = 'none';
+        document.getElementById('ouvrierRating').style.display = 'none';
+        document.getElementById('ouvrierNotes').style.display = 'none';
+        document.getElementById('savMessage').innerText = "Ihre Anfrage wurde an den Handwerker übermittelt.";
+        initMap();
+    } else {
+        document.getElementById('clientView').style.display = 'none';
+        document.getElementById('ouvrierView').style.display = 'block';
+        document.getElementById('clientPayment').style.display = 'none';
+        document.getElementById('ouvrierPayment').style.display = 'block';
+        document.getElementById('ouvrierRating').style.display = 'block';
+        document.getElementById('ouvrierNotes').style.display = 'block';
+        document.getElementById('savMessage').innerText = "Ihre Reservierung wurde vom Kunden bestätigt.";
+    }
+    showSection('accueil', document.getElementById('nav-home'));
+}
+
+function goBackToPortal() {
+    document.getElementById('portal').style.display = 'flex';
+    document.getElementById('mainNav').style.display = 'none';
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+}
+
+function initMap() {
+    if(!map) {
+        map = L.map('map').setView([47.5833, 7.5667], 12);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OSM' }).addTo(map);
+    }
+}
+
+function locateUser() {
+    if (!navigator.geolocation) return alert("Geolokalisation nicht unterstützt.");
+    navigator.geolocation.getCurrentPosition(pos => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+        L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map).bindPopup("Sie sind hier").openPopup();
+    });
+}
+
+function showSection(id, element) {
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active-link'));
+    if(element) element.classList.add('active-link');
+    if(id === 'accueil' && userRole === 'client') setTimeout(() => { if(map) map.invalidateSize(); }, 200);
+}
+
+function toggleOnline() {
+    let banner = document.getElementById('onlineStatus');
+    banner.style.display = (banner.style.display === 'block') ? 'none' : 'block';
+    alert(banner.style.display === 'block' ? "Sie sind jetzt auf der Karte sichtbar!" : "Sie sind jetzt offline.");
+}
+
+function setSearch(val) { document.getElementById('mainSearch').value = val; filterWorkers(); }
+function filterWorkers() {
+    let input = document.getElementById('mainSearch').value.toLowerCase();
+    document.querySelectorAll('.worker-item').forEach(item => {
+        let job = item.getAttribute('data-job') ? item.getAttribute('data-job').toLowerCase() : "";
+        item.style.display = job.includes(input) ? "flex" : "none";
+    });
+}
+
+function openModalClient(title, bio, photos) {
+    document.getElementById('mTitle').innerText = title;
+    document.getElementById('mBio').innerText = bio;
+    document.getElementById('mPhotos').innerHTML = photos.map(p => `<img src="${p}">`).join('');
+    document.getElementById('orderModal').style.display = 'block';
+    backToStep1();
+}
+function openModalOuvrier() { document.getElementById('chantierModal').style.display = 'block'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function goToStep2() { document.getElementById('modalStep1').style.display = 'none'; document.getElementById('modalStep2').style.display = 'block'; }
+function goToStep3() { document.getElementById('modalStep2').style.display = 'none'; document.getElementById('modalStep3').style.display = 'block'; }
+function backToStep1() { 
+    document.getElementById('modalStep1').style.display = 'block'; 
+    document.getElementById('modalStep2').style.display = 'none'; 
+    document.getElementById('modalStep3').style.display = 'none'; 
+}
+function setRating(n) { document.querySelectorAll('#starContainer span').forEach((s, i) => s.className = i < n ? 'star-active' : ''); }
+function confirmFinal() { alert('Zahlung bestätigt und Bewertung gesendet!'); closeModal('orderModal'); }
+</script>
+</body>
+</html>
